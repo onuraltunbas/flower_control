@@ -126,10 +126,10 @@ while cap.isOpened():
         sag_ok = el_kutuda_mi(sag_el_lms, *sag_kutu, w, h)
         
         cv2.rectangle(frame, (sol_kutu[0], sol_kutu[1]), (sol_kutu[2], sol_kutu[3]), (0, 255, 0) if sol_ok else (0, 0, 255), 2)
-        cv2.putText(frame, "Sol Eli Buraya", (sol_kutu[0]+10, sol_kutu[1]+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0) if sol_ok else (0, 0, 255), 2)
+        cv2.putText(frame, "Sol El", (sol_kutu[0]+10, sol_kutu[1]+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0) if sol_ok else (0, 0, 255), 2)
         
         cv2.rectangle(frame, (sag_kutu[0], sag_kutu[1]), (sag_kutu[2], sag_kutu[3]), (0, 255, 0) if sag_ok else (0, 0, 255), 2)
-        cv2.putText(frame, "Sag Eli Buraya", (sag_kutu[0]+10, sag_kutu[1]+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0) if sag_ok else (0, 0, 255), 2)
+        cv2.putText(frame, "Sag El", (sag_kutu[0]+10, sag_kutu[1]+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0) if sag_ok else (0, 0, 255), 2)
 
         cv2.putText(frame, "Baslamak icin ellerinizi kutulara hizalayin", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
@@ -157,7 +157,7 @@ while cap.isOpened():
             durum = "KALIB_2"
             zamanlayici_baslangic = time.time()
         else:
-            cv2.putText(frame, f"Adim 1: Ellerinizi sabit tutun. Olculuyor... {kalan_sure}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            cv2.putText(frame, f"Adim 1: Ellerinizi sabit tutun. {kalan_sure}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             if sol_el_lms:
                 x0, y0 = int(sol_el_lms.landmark[0].x * w), int(sol_el_lms.landmark[0].y * h)
                 x9, y9 = int(sol_el_lms.landmark[9].x * w), int(sol_el_lms.landmark[9].y * h)
@@ -170,7 +170,7 @@ while cap.isOpened():
         if gecen_sure > 5:
             durum = "OYUN"
         else:
-            cv2.putText(frame, f"Adim 2: Sol isaret ve bas parmaginizi acip kapatin! {kalan_sure}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f"Adim 2: Sol isaret ve bas parmaginizi acip kapatin. {kalan_sure}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             if sol_el_lms:
                 x4, y4 = int(sol_el_lms.landmark[4].x * w), int(sol_el_lms.landmark[4].y * h)
                 x8, y8 = int(sol_el_lms.landmark[8].x * w), int(sol_el_lms.landmark[8].y * h)
