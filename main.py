@@ -7,7 +7,13 @@ import time
 # --- AYARLAR ---
 KLASOR_YOLU = "video/kare_bg"
 TOPLAM_KARE = 150
-CICEK_BOYUTU = (300, 300)
+
+# Geliştirici modunu açıp kapatmak için bu değeri True veya False yapman yeterli!
+GELISTIRICI_MODU = True 
+
+# Sadece genişliği belirliyoruz, yüksekliği kod orijinal orana göre kendi bulacak
+CICEK_GENISLIGI = 400 
+CICEK_BOYUTU = (400, 400) # Varsayılan, ilk resim yüklenirken güncellenecek
 
 def overlay_image_alpha(img, img_overlay, x, y):
     h, w, _ = img_overlay.shape
@@ -19,25 +25,57 @@ def overlay_image_alpha(img, img_overlay, x, y):
     return img
 
 def el_kutuda_mi(hand_lms, kutu_x1, kutu_y1, kutu_x2, kutu_y2, w, h):
-    """Elin merkezinin (9 numaralı boğum) kutu içinde olup olmadığını kontrol eder."""
     if not hand_lms: 
         return False
-    
-    # Sadece elin tam ortasını (Orta parmak kökü) kontrol ediyoruz, çok daha affedici!
     x9, y9 = int(hand_lms.landmark[9].x * w), int(hand_lms.landmark[9].y * h)
-    
     if (kutu_x1 < x9 < kutu_x2 and kutu_y1 < y9 < kutu_y2):
         return True
     return False
 
-# 1. Papatya karelerini hafızaya yükle
+def ciz_gelistirici_bilgileri(frame, sol_el_lms, w, h, ref_boyut, min_oran, max_oran):
+    """Geliştirici modu açıksa parmak uçlarını, çizgiyi ve detaylı matematiksel verileri ekrana basar."""
+    if sol_el_lms:
+        # 4 (Baş Parmak) ve 8 (İşaret Parmağı) koordinatları
+        x4, y4 = int(sol_el_lms.landmark[4].x * w), int(sol_el_lms.landmark[4].y * h)
+        x8, y8 = int(sol_el_lms.landmark[8].x * w), int(sol_el_lms.landmark[8].y * h)
+        
+        # Noktaları ve aradaki çizgiyi çiz
+        cv2.circle(frame, (x4, y4), 8, (0, 255, 255), cv2.FILLED)
+        cv2.circle(frame, (x8, y8), 8, (0, 255, 255), cv2.FILLED)
+        cv2.line(frame, (x4, y4), (x8, y8), (0, 255, 255), 3)
+        
+        # Mesafeleri hesapla ve ekrana yazdır
+        mesafe_px = math.hypot(x8 - x4, y8 - y4)
+        
+        # Yazıları ekranın sol üst köşesine, kutularla çakışmayacak bir yere yazalım
+        bilgi_y_baslangic = h - 120
+        cv2.putText(frame, "--- GELISTIRICI MODU ---", (10, bilgi_y_baslangic), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 100, 100), 2)
+        cv2.putText(frame, f"Anlik Mesafe (Piksel): {mesafe_px:.1f}", (10, bilgi_y_baslangic + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        
+        if ref_boyut > 0:
+            anlik_oran = mesafe_px / ref_boyut
+            cv2.putText(frame, f"Anlik Oran: {anlik_oran:.3f}", (10, bilgi_y_baslangic + 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.putText(frame, f"Kalibre Edilen Min: {min_oran:.3f} | Max: {max_oran:.3f}", (10, bilgi_y_baslangic + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+
+# 1. Papatya karelerini hafızaya yükle ve En-Boy oranını düzelt
 print("Görseller yükleniyor, lütfen bekleyin...")
 papatya_kareleri = []
+oran_hesaplandi = False
+
 for i in range(1, TOPLAM_KARE + 1):
     dosya_adi = f"kare_{i:03d}.png"
     dosya_yolu = os.path.join(KLASOR_YOLU, dosya_adi)
     img = cv2.imread(dosya_yolu, cv2.IMREAD_UNCHANGED)
+    
     if img is not None:
+        # İlk resim yüklendiğinde orijinal en-boy oranını bul ve yüksekliği hesapla
+        if not oran_hesaplandi:
+            h_orig, w_orig = img.shape[:2]
+            cicek_yuksekligi = int(h_orig * (CICEK_GENISLIGI / w_orig))
+            CICEK_BOYUTU = (CICEK_GENISLIGI, cicek_yuksekligi)
+            oran_hesaplandi = True
+            print(f"Orijinal Oran Korundu. Yeni Çiçek Boyutu: {CICEK_BOYUTU}")
+
         img = cv2.resize(img, CICEK_BOYUTU)
         papatya_kareleri.append(img)
 
@@ -70,13 +108,12 @@ while cap.isOpened():
     sol_el_lms = None
     sag_el_lms = None
     
-    # Ellerin ekranın neresinde olduğuna (X koordinatına) göre Sol/Sağ ayrımı yapıyoruz
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
             x9 = hand_landmarks.landmark[9].x
-            if x9 < 0.5: # Ekranın sol yarısında
+            if x9 < 0.5: 
                 sol_el_lms = hand_landmarks
-            else:        # Ekranın sağ yarısında
+            else:        
                 sag_el_lms = hand_landmarks
 
     # --- DURUM MAKİNESİ (STATE MACHINE) ---
@@ -150,12 +187,21 @@ while cap.isOpened():
             x8, y8 = int(sol_el_lms.landmark[8].x * w), int(sol_el_lms.landmark[8].y * h)
             
             anlik_mesafe_orani = math.hypot(x8 - x4, y8 - y4) / referans_el_boyutu
-            oran = max(0, min(anlik_mesafe_orani - min_mesafe_orani, max_mesafe_orani - min_mesafe_orani)) / (max_mesafe_orani - min_mesafe_orani + 1e-5)
+            
+            # Eğer max_mesafe_orani ve min_mesafe_orani aynıysa 0'a bölünme hatasını engellemek için güvenlik önlemi
+            fark = max_mesafe_orani - min_mesafe_orani
+            if fark < 0.01: fark = 0.01 
+            
+            oran = max(0, min(anlik_mesafe_orani - min_mesafe_orani, max_mesafe_orani - min_mesafe_orani)) / fark
             kare_indeksi = int(oran * (TOPLAM_KARE - 1))
 
         if len(papatya_kareleri) > 0:
             cicek_resmi = papatya_kareleri[kare_indeksi]
             frame = overlay_image_alpha(frame, cicek_resmi, 0, h - CICEK_BOYUTU[1])
+
+    # --- GELİŞTİRİCİ MODU ÇİZİMİ ---
+    if GELISTIRICI_MODU:
+        ciz_gelistirici_bilgileri(frame, sol_el_lms, w, h, referans_el_boyutu, min_oran=min_mesafe_orani if min_mesafe_orani != float('inf') else 0, max_oran=max_mesafe_orani)
 
     cv2.imshow("Papatya Kontrol", frame)
 
